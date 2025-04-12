@@ -86,14 +86,14 @@ public class AsyncBroadcast<Element: Sendable> {
 
 extension AsyncBroadcast {
 
-	public convenience init(
-		_ stream: Stream
-	) {
+	public convenience init<T: AsyncSequence>(
+		sequence: T
+	) where T.Element == Element, T.Failure == Never {
 		self.init()
 
 		Task { @MainActor in
 
-			for await element in stream {
+			for await element in sequence {
 				self.send(element)
 			}
 
