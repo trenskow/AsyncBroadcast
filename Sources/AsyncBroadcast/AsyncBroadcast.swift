@@ -13,8 +13,6 @@ public class AsyncBroadcast<Element: Sendable> {
 
 	public typealias Stream = AsyncStream<Element>
 
-	private var continuations: [UUID: Stream.Continuation] = [:]
-
 	@MainActor
 	private class Sequence: @preconcurrency AsyncSequence {
 
@@ -50,6 +48,10 @@ public class AsyncBroadcast<Element: Sendable> {
 		}
 
 	}
+
+	private var continuations: [UUID: Stream.Continuation] = [:]
+
+	public init() { }
 
 	public func values() -> Stream.Iterator {
 
