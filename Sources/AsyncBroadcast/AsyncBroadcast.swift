@@ -14,7 +14,7 @@ public class AsyncBroadcast<Element: Sendable> {
 	public typealias Stream = AsyncStream<Element>
 
 	@MainActor
-	private class Sequence: @preconcurrency AsyncSequence {
+	public class Sequence: @preconcurrency AsyncSequence {
 
 		public typealias AsyncIterator = Stream.Iterator
 
@@ -53,14 +53,13 @@ public class AsyncBroadcast<Element: Sendable> {
 
 	public init() { }
 
-	public func values() -> Stream.Iterator {
+	public func sequence() -> Sequence {
 
 		let uuid = UUID()
 
 		return Sequence(
 			onLaunch: { self.continuations[uuid] = $0 },
 			onTermination: { self.continuations.removeValue(forKey: uuid) })
-			.makeAsyncIterator()
 
 	}
 
