@@ -8,47 +8,44 @@
 
 import Foundation
 
-@MainActor
-public class AsyncBroadcast<Element: Sendable> {
+public final class AsyncBroadcast<Element: Sendable>: Sendable {
 
 	public typealias Stream = AsyncStream<Element>
 
-	@MainActor
-	public class Sequence: @preconcurrency AsyncSequence {
+	public final class Sequence: AsyncSequence, Sendable {
 
 		public typealias AsyncIterator = Stream.Iterator
 
-		private var onLaunch: (Stream.Continuation) -> Void
-		private var onTermination: () -> Void
+		private let onLaunch: @Sendable (Stream.Continuation) -> Void
+		private let onTermination: @Sendable () -> Void
 
 		init(
-			onLaunch: @escaping (Stream.Continuation) -> Void,
-			onTermination: @escaping () -> Void
+			onLaunch: @escaping @Sendable (Stream.Continuation) -> Void,
+			onTermination: @escaping @Sendable () -> Void
 		) {
 			self.onLaunch = onLaunch
 			self.onTermination = onTermination
 		}
 
-		private lazy var stream: Stream = {
+		public func makeAsyncIterator() -> Stream.Iterator {
+
 			return Stream { continuation in
 
 				self.onLaunch(continuation)
 
 				continuation.onTermination = { _ in
-					Task { @MainActor in
+					Task {
 						self.onTermination()
 					}
 				}
 
-			}
-		}()
+			}.makeAsyncIterator()
 
-		public func makeAsyncIterator() -> Stream.Iterator {
-			return stream.makeAsyncIterator()
 		}
 
 	}
 
+	@MainActor
 	private var continuations: [UUID: Stream.Continuation] = [:]
 
 	public init() { }
@@ -58,11 +55,20 @@ public class AsyncBroadcast<Element: Sendable> {
 		let uuid = UUID()
 
 		return Sequence(
-			onLaunch: { self.continuations[uuid] = $0 },
-			onTermination: { self.continuations.removeValue(forKey: uuid) })
+			onLaunch: { continuation in
+				Task { @MainActor in
+					self.continuations[uuid] = continuation
+				}
+			},
+			onTermination: {
+				Task { @MainActor in
+					self.continuations.removeValue(forKey: uuid)
+				}
+			})
 
 	}
 
+	@MainActor
 	public func send(
 		_ element: Element
 	) {
@@ -71,6 +77,7 @@ public class AsyncBroadcast<Element: Sendable> {
 		}
 	}
 
+	@MainActor
 	public func cancel() {
 
 		continuations.values.forEach { continuation in
@@ -85,6 +92,7 @@ public class AsyncBroadcast<Element: Sendable> {
 
 extension AsyncBroadcast {
 
+	@MainActor
 	public convenience init<T: AsyncSequence>(
 		sequence: T
 	) where T.Element == Element, T.Failure == Never {
