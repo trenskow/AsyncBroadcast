@@ -11,7 +11,7 @@ import AsyncBroadcast
 let broadcaster = AsyncBroadcast<String>();
 
 Task {
-	for await value in iterator.values() {
+	for await value in broadcaster.values() {
 		print(value)
 	}
 }
